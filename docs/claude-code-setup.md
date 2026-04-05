@@ -20,7 +20,7 @@ Add this to `~/.claude/claude_desktop_config.json` on your Mac or remote server:
 }
 ```
 
-Or by IP (if Tailscale hostname doesn't resolve):
+Or by IP (if hostname doesn't resolve):
 ```json
 {
   "mcpServers": {

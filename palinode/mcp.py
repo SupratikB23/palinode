@@ -15,7 +15,7 @@ Usage (Claude Code / claude_desktop_config.json):
     "mcpServers": {
       "palinode": {
         "command": "ssh",
-        "args": ["user@your-server.your-tailscale.ts.net",
+        "args": ["user@your-server",
                  "cd /path/to/palinode && venv/bin/python -m palinode.mcp"]
       }
     }

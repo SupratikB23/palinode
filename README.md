@@ -247,7 +247,7 @@ Output is TTY-aware: human-readable text in a terminal, JSON when piped. Overrid
 **Remote usage** (from another machine on your network):
 ```bash
 # Option A: SSH
-ssh clawd@your-server 'palinode search "query"'
+ssh user@your-server 'palinode search "query"'
 
 # Option B: Point at remote API
 export PALINODE_API=http://your-server:6340

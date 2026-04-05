@@ -16,7 +16,7 @@
 - `palinode session-end` command — capture session outcomes to daily notes + project status
 
 ### Changed
-- Removed Gemini API key from systemd service files (palinode-api, engram-api, engram-watcher) — all inference uses local Ollama/vLLM
+- Removed API keys from systemd service files — all inference uses local Ollama/vLLM
 
 ### Infrastructure
 - Configured Palinode MCP on calarts-mbp for Claude Desktop, Claude CLI, Antigravity IDE, Cursor

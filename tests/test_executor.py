@@ -86,3 +86,26 @@ def test_malformed_operations(temp_memory_file):
     stats = apply_operations(temp_memory_file, ops)
     assert stats["kept"] == 1
     assert stats["updated"] == 1
+
+def test_missing_fields_are_skipped(temp_memory_file):
+    stats = apply_operations(temp_memory_file, [
+        {"op": "UPDATE", "id": "f1"},
+        {"op": "MERGE", "ids": ["f1", "f2"]},
+        {"op": "SUPERSEDE", "new_text": "Replacement"},
+        {"op": "ARCHIVE"},
+    ])
+    assert stats == {"kept": 0, "updated": 0, "merged": 0, "superseded": 0, "archived": 0}
+
+def test_missing_fact_id_is_noop(temp_memory_file):
+    stats = apply_operations(temp_memory_file, [{"op": "SUPERSEDE", "id": "missing", "new_text": "Replacement"}])
+    assert stats["superseded"] == 0
+    assert not os.path.exists(temp_memory_file.replace(".md", "-history.md"))
+
+def test_empty_operations_leave_file_unchanged(temp_memory_file):
+    with open(temp_memory_file) as f:
+        before = f.read()
+    stats = apply_operations(temp_memory_file, [])
+    with open(temp_memory_file) as f:
+        after = f.read()
+    assert before == after
+    assert stats == {"kept": 0, "updated": 0, "merged": 0, "superseded": 0, "archived": 0}

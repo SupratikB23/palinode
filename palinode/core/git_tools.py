@@ -12,12 +12,17 @@ import os
 import re
 import subprocess
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from palinode.core.config import config
 
 logger = logging.getLogger("palinode.git_tools")
+
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
 
 
 def _run_git(*args: str, check: bool = False) -> subprocess.CompletedProcess:
@@ -55,7 +60,7 @@ def diff(days: int = 7, paths: list[str] | None = None) -> str:
         Formatted diff output. Empty string if no changes.
     """
     # Find the commit closest to N days ago
-    since = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    since = (_utc_now() - timedelta(days=days)).strftime("%Y-%m-%d")
     
     # Get the first commit after the cutoff date
     result = _run_git("log", "--after", since, "--reverse", "--format=%H", "-1")
@@ -268,7 +273,7 @@ def push() -> str:
     if status.stdout.strip():
         # Auto-commit any uncommitted changes first
         _run_git("add", "-A")
-        _run_git("commit", "-m", f"palinode: auto-commit before push ({datetime.utcnow().strftime('%Y-%m-%d %H:%M')})")
+        _run_git("commit", "-m", f"palinode: auto-commit before push ({_utc_now().strftime('%Y-%m-%d %H:%M')})")
     
     result = _run_git("push", "origin", "main")
     if result.returncode != 0:
@@ -286,7 +291,7 @@ def commit_count(days: int = 7) -> dict[str, Any]:
     Returns:
         Dict with total_commits, files_changed, insertions, deletions.
     """
-    since = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    since = (_utc_now() - timedelta(days=days)).strftime("%Y-%m-%d")
     
     # Count commits in last N days
     result = _run_git("log", "--oneline", f"--since={since}", "HEAD")

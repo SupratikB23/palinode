@@ -6,6 +6,24 @@ from palinode.core.config import config
 from palinode.cli._format import print_result, get_default_format, OutputFormat
 
 
+def _resolve_memory_path(file_path: str) -> tuple[str, str]:
+    """Resolve a relative memory path without allowing traversal outside memory_dir."""
+    if "\x00" in file_path:
+        raise click.ClickException("Null bytes are not allowed in paths")
+    if os.path.isabs(file_path):
+        raise click.ClickException("Absolute paths are not allowed")
+
+    base_dir = os.path.realpath(config.memory_dir)
+    resolved = os.path.realpath(os.path.join(base_dir, file_path))
+    try:
+        within_root = os.path.commonpath([base_dir, resolved]) == base_dir
+    except ValueError as exc:
+        raise click.ClickException("Invalid path") from exc
+    if not within_root:
+        raise click.ClickException("Path traversal rejected")
+    return base_dir, resolved
+
+
 @click.command()
 @click.argument("file_path")
 @click.option("--format", "fmt", type=click.Choice(["text", "json"]), default=None, help="Output format")
@@ -21,21 +39,13 @@ def read(file_path, fmt, meta):
 
         palinode read projects/palinode-status.md --meta --format json
     """
-    # Resolve path relative to memory_dir
-    if os.path.isabs(file_path):
-        full_path = file_path
-    else:
-        full_path = os.path.join(config.memory_dir, file_path)
+    _, full_path = _resolve_memory_path(file_path)
 
     if not os.path.exists(full_path):
-        # Try with .md extension
-        if not full_path.endswith(".md"):
-            full_path_md = full_path + ".md"
-            if os.path.exists(full_path_md):
-                full_path = full_path_md
-            else:
-                raise click.ClickException(f"File not found: {file_path}")
-        else:
+        if not file_path.endswith(".md"):
+            file_path = f"{file_path}.md"
+            _, full_path = _resolve_memory_path(file_path)
+        if not os.path.exists(full_path):
             raise click.ClickException(f"File not found: {file_path}")
 
     with open(full_path, "r") as f:

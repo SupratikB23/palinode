@@ -15,7 +15,7 @@ Usage (Claude Code / claude_desktop_config.json):
     "mcpServers": {
       "palinode": {
         "command": "ssh",
-        "args": ["user@your-server",
+        "args": ["user@your-server.example.com",
                  "cd /path/to/palinode && venv/bin/python -m palinode.mcp"]
       }
     }
@@ -28,6 +28,7 @@ import logging
 import os
 import re
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 import mcp.server.stdio
@@ -44,6 +45,10 @@ server = Server("palinode")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
 
 def _format_results(results: list[dict[str, Any]]) -> str:
     """Format search results as clean text — minimal context burn.
@@ -773,9 +778,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
             project = arguments.get("project")
             source = arguments.get("source", "mcp")
 
-            from datetime import datetime
-            today = datetime.utcnow().strftime("%Y-%m-%d")
-            now_iso = datetime.utcnow().isoformat() + "Z"
+            today = _utc_now().strftime("%Y-%m-%d")
+            now_iso = _utc_now().isoformat().replace("+00:00", "Z")
 
             # Build session entry
             parts = [f"## Session End — {now_iso}\n"]
@@ -816,7 +820,6 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
                 text=f"Session captured → daily/{today}.md{status_msg}\n\n{session_entry}",
             )]
 
-        else:
         elif name == "palinode_lint":
             from palinode.core.lint import run_lint_pass
             import json

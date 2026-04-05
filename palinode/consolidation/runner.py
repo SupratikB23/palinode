@@ -14,7 +14,7 @@ import glob
 import logging
 import shutil
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -24,6 +24,11 @@ from palinode.core.config import config
 from palinode.core import store, embedder
 
 logger = logging.getLogger("palinode.consolidation")
+
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
 
 def _git_commit(message: str) -> None:
     if not config.git.auto_commit:
@@ -68,7 +73,7 @@ def _collect_daily_notes(lookback_days: int) -> list[dict]:
     if not os.path.exists(daily_dir):
         return []
     
-    cutoff_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+    cutoff_date = (_utc_now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
     notes = []
     
     for filepath in glob.glob(os.path.join(daily_dir, "*.md")):
@@ -298,7 +303,7 @@ def _write_project_summary(project_id: str, consolidation: dict) -> None:
     
     # Simple write, but realistically we'd merge with existing body/frontmatter.
     # We will log the new summary block or replace the content.
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ")
+    now = _utc_now().strftime("%Y-%m-%d %H:%M:%SZ")
     
     status_bullets = consolidation.get("status_bullets", [])
     bullets_text = "\n".join(f"- {b}" for b in status_bullets)
@@ -488,7 +493,7 @@ def run_consolidation(lookback_days: int | None = None) -> dict[str, Any]:
     else:
         logger.warning("No projects compacted successfully — skipping daily note archival")
     
-    _git_commit(f"palinode: compaction {datetime.utcnow().strftime('%Y-%m-%d')} — "
+    _git_commit(f"palinode: compaction {_utc_now().strftime('%Y-%m-%d')} — "
                 f"{total_stats['updated']}u {total_stats['merged']}m "
                 f"{total_stats['superseded']}s {total_stats['archived']}a")
     

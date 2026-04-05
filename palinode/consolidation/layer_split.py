@@ -13,8 +13,13 @@ from __future__ import annotations
 import os
 import re
 import yaml
-from datetime import datetime
+from datetime import UTC, datetime
 from palinode.core.config import config
+
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
 
 
 def split_file(file_path: str) -> dict:
@@ -110,7 +115,7 @@ def split_file(file_path: str) -> dict:
     id_meta = dict(metadata)
     id_meta['core'] = True
     id_meta['layer'] = 'identity'
-    id_meta['last_updated'] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    id_meta['last_updated'] = _utc_now().strftime("%Y-%m-%dT%H:%M:%SZ")
     id_content = f"---\n{yaml.dump(id_meta, default_flow_style=False)}---\n\n"
     id_content += "\n\n".join(identity_sections)
     
@@ -127,7 +132,7 @@ def split_file(file_path: str) -> dict:
             'core': True,
             'layer': 'status',
             'parent': id_meta.get('id', name),
-            'last_updated': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            'last_updated': _utc_now().strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         if metadata.get('summary'):
             st_meta['summary'] = f"Current status: {metadata['summary'][:80]}"
@@ -150,7 +155,7 @@ def split_file(file_path: str) -> dict:
             'core': False,
             'layer': 'history',
             'parent': id_meta.get('id', name),
-            'created_at': datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            'created_at': _utc_now().strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         if metadata.get('entities'):
             h_meta['entities'] = metadata['entities']

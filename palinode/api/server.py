@@ -16,7 +16,7 @@ import yaml
 import httpx
 import subprocess
 import glob
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -34,7 +34,7 @@ class JsonlFormatter(logging.Formatter):
     """Logging Formatter dictating a JSONL chronological schema format."""
     def format(self, record: logging.LogRecord) -> str:
         return json.dumps({
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": _utc_now().isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "name": record.name,
             "message": record.getMessage()
@@ -53,6 +53,34 @@ logger.addHandler(fh)
 app = FastAPI(title="Palinode API")
 
 # ── Auto-summary helpers ──────────────────────────────────────────────────────
+
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
+
+
+def _memory_base_dir() -> str:
+    """Return the canonical memory root."""
+    return os.path.realpath(getattr(config, "memory_dir", config.palinode_dir))
+
+
+def _resolve_memory_path(file_path: str) -> tuple[str, str]:
+    """Resolve a relative memory path without allowing traversal outside memory_dir."""
+    if "\x00" in file_path:
+        raise HTTPException(status_code=400, detail="Null bytes are not allowed in paths")
+    if os.path.isabs(file_path):
+        raise HTTPException(status_code=403, detail="Absolute paths are not allowed")
+
+    base_dir = _memory_base_dir()
+    resolved = os.path.realpath(os.path.join(base_dir, file_path))
+    try:
+        within_root = os.path.commonpath([base_dir, resolved]) == base_dir
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Path traversal rejected") from exc
+    if not within_root:
+        raise HTTPException(status_code=403, detail="Path traversal rejected")
+    return base_dir, resolved
 
 def _generate_summary(content: str) -> str:
     """Invokes Ollama to produce a single-sentence logical summary of file memory.
@@ -163,12 +191,17 @@ def list_api(category: str | None = None, core_only: bool = False) -> list[dict[
     from palinode.core import parser
     
     results = []
-    base_dir = getattr(config, 'memory_dir', config.palinode_dir)
+    base_dir = _memory_base_dir()
     search_pattern = os.path.join(base_dir, "**/*.md")
     
     skip_dirs = {"daily", "archive", "inbox", "logs"}
     
     for filepath in glob.glob(search_pattern, recursive=True):
+        try:
+            if os.path.commonpath([base_dir, os.path.realpath(filepath)]) != base_dir:
+                continue
+        except ValueError:
+            continue
         rel_path = os.path.relpath(filepath, base_dir)
         parts = rel_path.split(os.sep)
         
@@ -207,19 +240,20 @@ def list_api(category: str | None = None, core_only: bool = False) -> list[dict[
 def read_api(file_path: str, meta: bool = False) -> dict[str, Any]:
     from palinode.core import parser
     
-    base_dir = getattr(config, 'memory_dir', config.palinode_dir)
-    
+    candidates = [file_path]
     if not file_path.endswith(".md"):
-        test_path = os.path.join(base_dir, file_path)
-        if not os.path.exists(test_path):
-             file_path += ".md"
-             
-    resolved = os.path.realpath(os.path.join(base_dir, file_path))
-    if not resolved.startswith(os.path.realpath(base_dir)):
-        raise HTTPException(status_code=403, detail="Path traversal rejected")
-        
-    if not os.path.exists(resolved):
-         raise HTTPException(status_code=404, detail="File not found")
+        candidates.append(f"{file_path}.md")
+
+    resolved = ""
+    for candidate in candidates:
+        _, resolved_candidate = _resolve_memory_path(candidate)
+        if os.path.exists(resolved_candidate):
+            file_path = candidate
+            resolved = resolved_candidate
+            break
+
+    if not resolved:
+        raise HTTPException(status_code=404, detail="File not found")
          
     try:
         with open(resolved, "r") as f:
@@ -617,11 +651,7 @@ def history_api(file_path: str, limit: int = 10) -> dict[str, Any]:
     Shows when and how a memory was created, updated, or superseded.
     """
     import subprocess
-    base_dir = os.path.abspath(getattr(config, 'memory_dir', config.palinode_dir))
-    full_path = os.path.abspath(os.path.join(base_dir, file_path))
-    
-    if not full_path.startswith(base_dir):
-        raise HTTPException(status_code=400, detail="Invalid path (path traversal detected)")
+    base_dir, full_path = _resolve_memory_path(file_path)
         
     if not os.path.exists(full_path):
         raise HTTPException(status_code=404, detail="File not found")

@@ -23,17 +23,22 @@ from palinode.core import store, embedder, parser
 from palinode.core.config import config
 from palinode.core.hashing import stable_md5_hexdigest
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 logger = logging.getLogger("palinode.watcher")
 logger.setLevel(logging.INFO)
+
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
 
 
 class JsonlFormatter(logging.Formatter):
     """Logging Formatter dictating a JSONL chronological schema format."""
     def format(self, record: logging.LogRecord) -> str:
         return json.dumps({
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": _utc_now().isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "name": record.name,
             "message": record.getMessage()

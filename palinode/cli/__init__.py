@@ -1,5 +1,4 @@
 import click
-import asyncio
 from palinode.core.config import config
 from palinode.cli.search import search
 from palinode.cli.save import save
@@ -58,38 +57,38 @@ main.add_command(session_end)
 @click.option("--api/--no-api", default=True, help="Run API server")
 def start(watcher, api):
     """Start Palinode services in the foreground."""
-    from palinode.api.server import APIServer
-    from palinode.indexer.sqlite import SQLiteIndexer
-    from palinode.ingest.watcher import Watcher
-    from rich.live import Live
-    from rich.panel import Panel
+    from multiprocessing import Process
     from rich.console import Console
+    from palinode.api.server import main as api_main
+    from palinode.indexer.watcher import main as watcher_main
     
     console = Console()
-    
-    async def run_services():
-        tasks = []
-        if api:
-            console.print("[green]Starting API server...[/green]")
-            api_service = APIServer(config)
-            tasks.append(api_service.start())
-            
-        if watcher:
-            console.print("[green]Starting watcher...[/green]")
-            indexer = SQLiteIndexer(config)
-            watcher_service = Watcher(config, indexer)
-            tasks.append(watcher_service.start())
-            
-        if not tasks:
-            console.print("[yellow]No services specified to start.[/yellow]")
-            return
-            
-        await asyncio.gather(*tasks)
+    processes = []
+
+    if api:
+        console.print("[green]Starting API server...[/green]")
+        processes.append(Process(target=api_main, daemon=False))
+
+    if watcher:
+        console.print("[green]Starting watcher...[/green]")
+        processes.append(Process(target=watcher_main, daemon=False))
+
+    if not processes:
+        console.print("[yellow]No services specified to start.[/yellow]")
+        return
 
     try:
-        asyncio.run(run_services())
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join()
     except KeyboardInterrupt:
         console.print("\n[yellow]Stopping services...[/yellow]")
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+        for process in processes:
+            process.join(timeout=5)
 
 @main.command()
 @click.option("--watcher/--no-watcher", default=True, help="Stop memory watcher")

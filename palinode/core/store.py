@@ -17,7 +17,7 @@ import json
 import os
 import hashlib
 from typing import Any, Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from palinode.core.config import config
 
 # ── Security Scanning ────────────────────────────────────────────────────────
@@ -34,6 +34,11 @@ INJECTION_PATTERNS = [
     r'javascript\s*:',
     r'system\s*prompt\s*:',
 ]
+
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
 
 
 def scan_memory_content(content: str) -> tuple[bool, str]:
@@ -613,7 +618,7 @@ def search_hybrid(
 
     # Record retrieval for frequency tracking (batch update, non-blocking)
     if merged:
-        now = datetime.utcnow().isoformat()
+        now = _utc_now().isoformat()
         db = get_db()
         try:
             for r in merged[:top_k]:
@@ -669,7 +674,7 @@ def upsert_entities(file_path: str, metadata: dict[str, Any]) -> None:
     db = get_db()
     cursor = db.cursor()
     category = metadata.get("category", "")
-    now = datetime.utcnow().isoformat() + "Z"
+    now = _utc_now().isoformat().replace("+00:00", "Z")
     
     for entity_ref in entities:
         cursor.execute("""
@@ -840,7 +845,7 @@ def add_trigger(
         cooldown_hours: Hours between refires.
     """
     db = get_db()
-    now = datetime.utcnow().isoformat() + "Z"
+    now = _utc_now().isoformat().replace("+00:00", "Z")
     db.execute("""
         INSERT OR REPLACE INTO triggers (id, description, memory_file, threshold, cooldown_hours, created_at, enabled, fire_count)
         VALUES (?, ?, ?, ?, ?, ?, 1, 0)
@@ -879,7 +884,7 @@ def check_triggers(
     """, (query_vec_json,)).fetchall()
     
     results = []
-    now = datetime.utcnow()
+    now = _utc_now()
     
     for row in rows:
         if not row["enabled"]:
@@ -926,7 +931,7 @@ def delete_trigger(trigger_id: str) -> None:
 def update_trigger_fired(trigger_id: str) -> None:
     """Record that a trigger fired — update last_fired and fire_count."""
     db = get_db()
-    now = datetime.utcnow().isoformat() + "Z"
+    now = _utc_now().isoformat().replace("+00:00", "Z")
     db.execute("""
         UPDATE triggers 
         SET last_fired = ?, fire_count = fire_count + 1
@@ -970,7 +975,7 @@ def score_with_decay(
     if last_recalled_date:
         try:
             last = datetime.fromisoformat(last_recalled_date[:10])
-            delta_days = (datetime.utcnow() - last).days
+            delta_days = (_utc_now() - last).days
         except Exception:
             delta_days = 0
     else:
@@ -980,4 +985,3 @@ def score_with_decay(
     frequency_boost = 1 + math.log1p(recall_count)
     
     return min(base_score * importance * decay * frequency_boost, 1.0)
-

@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 import re
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import yaml
@@ -23,6 +23,18 @@ import yaml
 from palinode.core.config import config
 
 logger = logging.getLogger("palinode.consolidation.executor")
+
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(UTC)
+
+
+def _normalize_fact_text(text: str) -> str:
+    """Normalize LLM-proposed fact text to list-item content only."""
+    normalized = text.strip()
+    normalized = re.sub(r"^[-*]\s+", "", normalized)
+    return normalized
 
 
 def apply_operations(file_path: str, operations: list[dict]) -> dict:
@@ -55,30 +67,38 @@ def apply_operations(file_path: str, operations: list[dict]) -> dict:
             fact_id = op.get("id")
             new_text = op.get("new_text", "")
             if fact_id and new_text:
-                content = _update_fact(content, fact_id, new_text)
-                stats["updated"] += 1
+                updated_content = _update_fact(content, fact_id, new_text)
+                if updated_content != content:
+                    content = updated_content
+                    stats["updated"] += 1
         
         elif op_type == "MERGE":
             ids = op.get("ids", [])
             new_text = op.get("new_text", "")
             if ids and new_text:
-                content = _merge_facts(content, ids, new_text)
-                stats["merged"] += 1
+                merged_content = _merge_facts(content, ids, new_text)
+                if merged_content != content:
+                    content = merged_content
+                    stats["merged"] += 1
         
         elif op_type == "SUPERSEDE":
             fact_id = op.get("id")
             new_text = op.get("new_text", "")
             reason = op.get("reason", "")
             if fact_id and new_text:
-                content = _supersede_fact(content, fact_id, new_text, reason, file_path)
-                stats["superseded"] += 1
+                superseded_content = _supersede_fact(content, fact_id, new_text, reason, file_path)
+                if superseded_content != content:
+                    content = superseded_content
+                    stats["superseded"] += 1
         
         elif op_type == "ARCHIVE":
             fact_id = op.get("id")
             reason = op.get("rationale", op.get("reason", ""))
             if fact_id:
-                content = _archive_fact(content, fact_id, reason, file_path)
-                stats["archived"] += 1
+                archived_content = _archive_fact(content, fact_id, reason, file_path)
+                if archived_content != content:
+                    content = archived_content
+                    stats["archived"] += 1
     
     # Write back
     with open(file_path, 'w') as f:
@@ -93,7 +113,7 @@ def _update_fact(content: str, fact_id: str, new_text: str) -> str:
         r'^([\s]*[-*]\s+).*?(<!-- fact:' + re.escape(fact_id) + r' -->)',
         re.MULTILINE
     )
-    replacement = rf'\1{new_text} <!-- fact:{fact_id} -->'
+    replacement = rf'\1{_normalize_fact_text(new_text)} <!-- fact:{fact_id} -->'
     return pattern.sub(replacement, content, count=1)
 
 
@@ -103,9 +123,17 @@ def _merge_facts(content: str, ids: list[str], new_text: str) -> str:
     merged_id = f"merged-{ids[0]}"
     
     # Replace first with merged text
-    content = _update_fact(content, first_id, new_text)
+    updated_content = _update_fact(content, first_id, new_text)
+    if updated_content == content:
+        return content
+    content = updated_content
     # Update the fact ID to the merged ID
-    content = content.replace(f"<!-- fact:{first_id} -->", f"<!-- fact:{merged_id} -->")
+    content = re.sub(
+        r"<!-- fact:" + re.escape(first_id) + r" -->",
+        f"<!-- fact:{merged_id} -->",
+        content,
+        count=1,
+    )
     
     # Remove remaining source facts
     for fid in ids[1:]:
@@ -121,7 +149,7 @@ def _merge_facts(content: str, ids: list[str], new_text: str) -> str:
 def _supersede_fact(content: str, fact_id: str, new_text: str,
                     reason: str, file_path: str) -> str:
     """Mark a fact as superseded and add the new version."""
-    now = datetime.utcnow().strftime("%Y-%m-%d")
+    now = _utc_now().strftime("%Y-%m-%d")
     new_id = f"supersedes-{fact_id}"
     
     # Strikethrough the old fact and add superseded marker
@@ -133,14 +161,16 @@ def _supersede_fact(content: str, fact_id: str, new_text: str,
     def replacer(m):
         old_text = m.group(2).strip()
         return (f"{m.group(1)}~~{old_text}~~ [superseded {now}] {m.group(3)}\n"
-                f"{m.group(1)}{new_text} <!-- fact:{new_id} -->")
+                f"{m.group(1)}{_normalize_fact_text(new_text)} <!-- fact:{new_id} -->")
     
-    content = pattern.sub(replacer, content, count=1)
+    updated_content, substitutions = pattern.subn(replacer, content, count=1)
+    if substitutions == 0:
+        return content
     
     # Also append to history file
     _append_to_history(file_path, fact_id, f"Superseded ({now}): {reason}")
     
-    return content
+    return updated_content
 
 
 def _archive_fact(content: str, fact_id: str, reason: str, file_path: str) -> str:
@@ -167,7 +197,7 @@ def _append_to_history(file_path: str, fact_id: str, text: str) -> None:
     base = re.sub(r'\.md$', '', base)
     history_path = f"{base}-history.md"
     
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    now = _utc_now().strftime("%Y-%m-%d %H:%M")
     entry = f"- [{now}] {text} <!-- fact:{fact_id} -->\n"
     
     if os.path.exists(history_path):

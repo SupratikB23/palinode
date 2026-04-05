@@ -78,6 +78,29 @@ def test_read_rejects_path_traversal(mock_memory_dir):
     res = client.get("/read?file_path=../../etc/passwd")
     assert res.status_code == 403
 
+def test_read_rejects_null_bytes(mock_memory_dir):
+    res = client.get("/read?file_path=people/alice.md%00suffix")
+    assert res.status_code == 400
+
+def test_read_rejects_symlink_outside_memory_dir(mock_memory_dir):
+    outside_file = os.path.join(os.path.dirname(mock_memory_dir), "outside.md")
+    with open(outside_file, "w") as f:
+        f.write("secret")
+
+    os.symlink(outside_file, os.path.join(mock_memory_dir, "people", "escape.md"))
+    res = client.get("/read?file_path=people/escape.md")
+    assert res.status_code == 403
+
+def test_list_skips_symlinked_files_outside_memory_dir(mock_memory_dir):
+    outside_file = os.path.join(os.path.dirname(mock_memory_dir), "outside-list.md")
+    with open(outside_file, "w") as f:
+        f.write("---\nname: Outside\ncategory: people\n---\nsecret")
+
+    os.symlink(outside_file, os.path.join(mock_memory_dir, "people", "outside.md"))
+    res = client.get("/list")
+    files = [item["file"] for item in res.json()]
+    assert "people/outside.md" not in files
+
 def test_read_appends_md_extension(mock_memory_dir):
     res = client.get("/read?file_path=people/alice")
     assert res.status_code == 200

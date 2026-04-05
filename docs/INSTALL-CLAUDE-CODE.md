@@ -1,12 +1,12 @@
 # Installing Palinode with Claude Code
 
-Palinode gives Claude Code persistent memory via MCP — 14 tools for searching, saving, and managing memories across sessions. The `palinode-session` skill auto-captures milestones and decisions during coding, so your memory stays fresh without manual effort.
+Palinode gives Claude Code persistent memory via MCP — 17 tools for searching, saving, and managing memories across sessions. The `palinode-session` skill auto-captures milestones and decisions during coding, so your memory stays fresh without manual effort.
 
 ## Prerequisites
 
 - Claude Code installed (`npm install -g @anthropic-ai/claude-code`)
 - Palinode API running (see below)
-- Python 3.12+
+- Python 3.11+
 
 ---
 

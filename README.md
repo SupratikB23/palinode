@@ -24,7 +24,7 @@ If every service crashes, `cat` still works. No external database. No cloud depe
 
 Most agent memory systems are opaque databases you can't inspect, flat files that don't scale, or graph stores that require infrastructure. Palinode is **memory with provenance** — the only system where you can `git blame` every fact your agent knows.
 
-- **Git blame/diff/rollback as agent tools** — not just git-compatible files, but `palinode_diff`, `palinode_blame`, and `palinode_rollback` as first-class MCP tools your agent can call. [DiffMem](https://github.com/search?q=diffmem) and Git-Context-Controller are PoCs; Palinode ships 15 MCP tools including 5 git operations.
+- **Git blame/diff/rollback as agent tools** — not just git-compatible files, but `palinode_diff`, `palinode_blame`, and `palinode_rollback` as first-class MCP tools your agent can call. [DiffMem](https://github.com/search?q=diffmem) and Git-Context-Controller are PoCs; Palinode ships 17 MCP tools including 5 git operations.
 
 - **Operation-based compaction with a deterministic executor** — the LLM outputs structured ops (KEEP/UPDATE/MERGE/SUPERSEDE/ARCHIVE), a deterministic executor applies them. The LLM never touches your files directly. [All-Mem](https://arxiv.org/search/?query=all-mem+memory) does something similar on graph nodes; Palinode does it on plain markdown with git commits.
 
@@ -70,7 +70,7 @@ Most agent memory systems are opaque databases you can't inspect, flat files tha
 
 ### Integration ✅
 - **OpenClaw plugin** — lifecycle hooks for inject, extract, and capture
-- **MCP server** — 15 tools for Claude Code and any MCP client
+- **MCP server** — 17 tools for Claude Code and any MCP client
 - **FastAPI server** — HTTP API for programmatic access
 - **CLI** — command-line search, stats, reindex
 
@@ -132,7 +132,7 @@ graph TD
 
 ## Requirements
 
-- **Python 3.12+**
+- **Python 3.11+**
 - **Ollama** with `bge-m3` model (for embeddings — `ollama pull bge-m3`)
 - **Git** (for memory versioning)
 - A directory for your memory files (local, or a private git repo)
@@ -148,7 +148,7 @@ Optional:
 | Embeddings | BGE-M3 via Ollama |
 | Consolidation LLM | [OLMo 3.1 32B AWQ](https://huggingface.co/allenai/OLMo-3.1-32B-AWQ) via vLLM |
 | Hardware | RTX 5090 32GB (consolidation), any CPU (embeddings + API) |
-| Python | 3.12 |
+| Python | 3.11+ |
 | OS | Ubuntu 22.04 (Linux), macOS 14+ (development) |
 
 Other models should work — the consolidation prompt is model-agnostic. Smaller models (8B) may produce less reliable JSON for compaction operations; use `json-repair` (included) as a safety net.
@@ -531,7 +531,7 @@ Palinode is informed by research and ideas from several projects in the agent me
 
 ### Architecture Inspiration
 
-- **[LLM Knowledge Bases](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** (Andrej Karpathy, April 2026) — The "compile, don't retrieve" pattern: LLM incrementally builds a structured markdown wiki from raw sources. Palinode implements this with git provenance, deterministic compaction, and 15 MCP tools.
+- **[LLM Knowledge Bases](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** (Andrej Karpathy, April 2026) — The "compile, don't retrieve" pattern: LLM incrementally builds a structured markdown wiki from raw sources. Palinode implements this with git provenance, deterministic compaction, and 17 MCP tools.
 
 - **[OpenClaw](https://github.com/openclaw/openclaw)** — The plugin SDK, lifecycle hooks, and `MEMORY.md` pattern that Palinode extends and replaces. Palinode started as a better memory system for OpenClaw agents.
 

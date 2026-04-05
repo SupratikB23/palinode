@@ -14,6 +14,7 @@ from palinode.cli.query import history, entities
 from palinode.cli.session_end import session_end
 from palinode.cli.read import read
 from palinode.cli.list import list_cmd
+from palinode.cli.lint import lint
 
 @click.group()
 def main():
@@ -47,6 +48,7 @@ main.add_command(history)
 main.add_command(entities)
 main.add_command(read)
 main.add_command(list_cmd, name="list")
+main.add_command(lint)
 
 # Session
 main.add_command(session_end)

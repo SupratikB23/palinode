@@ -603,6 +603,13 @@ def entities_list_api() -> list[dict[str, Any]]:
     return results
 
 
+@app.post("/lint")
+def lint_api() -> dict[str, Any]:
+    """Scan memory and report orphans, stale files, and contradictions."""
+    from palinode.core.lint import run_lint_pass
+    return run_lint_pass()
+
+
 @app.get("/history/{file_path:path}")
 def history_api(file_path: str, limit: int = 10) -> dict[str, Any]:
     """Get the change history for a memory file via git log.

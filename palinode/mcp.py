@@ -15,7 +15,7 @@ Usage (Claude Code / claude_desktop_config.json):
     "mcpServers": {
       "palinode": {
         "command": "ssh",
-        "args": ["user@your-server",
+        "args": ["user@your-server.your-tailscale.ts.net",
                  "cd /path/to/palinode && venv/bin/python -m palinode.mcp"]
       }
     }
@@ -321,14 +321,6 @@ async def list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
-            name="palinode_lint",
-            description="Scan memory files and report health issues (orphaned files, stale files, missing fields).",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-            },
-        ),
-        types.Tool(
             name="palinode_diff",
             description=(
                 "Show what memories changed recently. Use to review what was learned, "
@@ -489,6 +481,17 @@ async def list_tools() -> list[types.Tool]:
                     },
                 },
                 "required": ["summary"],
+            },
+        ),
+        types.Tool(
+            name="palinode_lint",
+            description=(
+                "Scan memory for health issues: orphaned files, stale active files (>90 days), "
+                "missing frontmatter fields, and potential contradictions. Returns a report without modifying files."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
             },
         ),
     ]
@@ -701,19 +704,6 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
             ]
             return [types.TextContent(type="text", text="\n".join(lines))]
 
-        elif name == "palinode_lint":
-            import json
-            import httpx
-            api_port = config.services.api.port
-            try:
-                resp = httpx.post(f"http://localhost:{api_port}/lint", timeout=30.0)
-                if resp.status_code == 200:
-                    return [types.TextContent(type="text", text=json.dumps(resp.json(), indent=2))]
-                return [types.TextContent(type="text", text=f"Error running lint: {resp.text}")]
-            except httpx.RequestError:
-                from palinode.core.lint import run_lint_pass
-                return [types.TextContent(type="text", text=json.dumps(run_lint_pass(), indent=2))]
-
         elif name == "palinode_diff":
             from palinode.core import git_tools
             days = int(arguments.get("days", 7))
@@ -825,6 +815,13 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
                 type="text",
                 text=f"Session captured → daily/{today}.md{status_msg}\n\n{session_entry}",
             )]
+
+        else:
+        elif name == "palinode_lint":
+            from palinode.core.lint import run_lint_pass
+            import json
+            result = run_lint_pass()
+            return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
 
         else:
             return [types.TextContent(type="text", text=f"Unknown tool: {name}")]

@@ -126,7 +126,7 @@ graph TD
 | CLI | Click (wraps REST API) | Agents, scripts, cron — 8x fewer tokens than MCP |
 | MCP | Python MCP SDK (stdio) | IDEs only (Claude Desktop, Antigravity, Cursor) |
 | Plugin | OpenClaw Plugin SDK | Lifecycle hooks for session inject/extract |
-| Behavior spec / Schema | `PROGRAM.md` | The wiki schema — change how the memory manager extracts, classifies, and consolidates by editing one file |
+| Config | `palinode.config.yaml` | All settings — models, endpoints, search, consolidation schedule |
 
 ---
 
@@ -307,7 +307,7 @@ cp -r plugin/ ~/.openclaw/extensions/openclaw-palinode
 
 The plugin provides `before_agent_start` (inject), `agent_end` (extract), and `-es` capture hooks.
 
-**Already using OpenClaw's built-in memory?** See [docs/INSTALL-OPENCLAW-MIGRATION.md](docs/INSTALL-OPENCLAW-MIGRATION.md) for what to disable (MEMORY.md, Mem0, session-memory hook) and why Palinode replaces all of them with ~5,700 fewer tokens per session.
+**Migrating from another memory system?** Palinode replaces Mem0-style key-value stores with structured, git-versioned markdown. See the CLI migration tools (`palinode migrate-mem0`).
 
 ---
 
@@ -518,7 +518,7 @@ Palinode makes specific bets about how agent memory should work:
 | 5 — Compaction | ✅ Done | Operation-based compaction, layered core files |
 | 5.5 — Recall+ | ✅ Done | Associative entity search, prospective triggers, temporal decay |
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the full research-informed roadmap.
+See [GitHub Issues](https://github.com/Paul-Kyle/palinode/issues) for what's next.
 
 ---
 

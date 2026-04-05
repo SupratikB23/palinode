@@ -37,7 +37,7 @@ Hermes needs an LLM backend. Options:
 
 ## Install Palinode
 
-See [INSTALL-OPENCLAW.md](INSTALL-OPENCLAW.md) for full setup, or quickstart:
+See [QUICKSTART.md](QUICKSTART.md) for full setup, or quickstart:
 
 ```bash
 git clone https://github.com/Paul-Kyle/palinode.git ~/palinode

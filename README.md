@@ -243,8 +243,6 @@ Optional: a chat model for consolidation (any 7B+ works), OpenClaw for agent plu
 
 ## What's Unique
 
-Based on a [landscape analysis](docs/perplexity-landscape-2026-03-31.md) covering Letta, LangMem, Mem0, Zep, memsearch, Hermes, and others:
-
 - **Git operations as agent tools** — `diff`, `blame`, `rollback`, `push` exposed via MCP. No other system makes git ops callable by the agent.
 - **Operation-based compaction** — KEEP/UPDATE/MERGE/SUPERSEDE/ARCHIVE DSL. LLM proposes, deterministic executor disposes. Every compaction is a reviewable git commit.
 - **Per-fact addressability** — `<!-- fact:slug -->` IDs inline in markdown, invisible in rendering, preserved by git, targetable by compaction.
@@ -256,7 +254,7 @@ Based on a [landscape analysis](docs/perplexity-landscape-2026-03-31.md) coverin
 
 ## Acknowledgments
 
-Palinode builds on ideas from [Karpathy's LLM Knowledge Bases](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [memsearch](https://zilliztech.github.io/memsearch/) (hybrid search + hash dedup), [Letta](https://github.com/letta-ai/letta) (tiered memory), [LangMem](https://github.com/langchain-ai/langmem) (typed schemas + background consolidation), [Hermes](https://github.com/NousResearch/hermes-agent) (security scanning + FTS5 sanitization), and [OB1](https://github.com/NateBJones-Projects/OB1) (two-door capture pattern).
+Palinode builds on ideas from [Karpathy's LLM Knowledge Bases](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [Letta](https://github.com/letta-ai/letta) (tiered memory), and [LangMem](https://github.com/langchain-ai/langmem) (typed schemas + background consolidation). See [docs/ACKNOWLEDGMENTS.md](docs/ACKNOWLEDGMENTS.md) for the full list.
 
 If you know of prior art we missed, please [open an issue](https://github.com/Paul-Kyle/palinode/issues).
 

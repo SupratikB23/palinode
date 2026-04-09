@@ -257,6 +257,8 @@ Optional: a chat model for consolidation (any 7B+ works), OpenClaw for agent plu
 
 Palinode builds on ideas from [Karpathy's LLM Knowledge Bases](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), [Letta](https://github.com/letta-ai/letta) (tiered memory), and [LangMem](https://github.com/langchain-ai/langmem) (typed schemas + background consolidation). See [docs/ACKNOWLEDGMENTS.md](docs/ACKNOWLEDGMENTS.md) for the full list.
 
+See also the [epistemic integrity discussion](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) in the Karpathy gist thread — particularly the problem of LLM wikis that "synthesise without citing, drift from sources without knowing it, and present false certainty where disagreement exists." Git-based provenance is Palinode's answer to that problem.
+
 If you know of prior art we missed, please [open an issue](https://github.com/Paul-Kyle/palinode/issues).
 
 ---

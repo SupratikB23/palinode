@@ -94,7 +94,7 @@ def test_missing_fields_are_skipped(temp_memory_file):
         {"op": "SUPERSEDE", "new_text": "Replacement"},
         {"op": "ARCHIVE"},
     ])
-    assert stats == {"kept": 0, "updated": 0, "merged": 0, "superseded": 0, "archived": 0}
+    assert stats == {"kept": 0, "updated": 0, "merged": 0, "superseded": 0, "archived": 0, "retracted": 0}
 
 def test_missing_fact_id_is_noop(temp_memory_file):
     stats = apply_operations(temp_memory_file, [{"op": "SUPERSEDE", "id": "missing", "new_text": "Replacement"}])
@@ -108,4 +108,59 @@ def test_empty_operations_leave_file_unchanged(temp_memory_file):
     with open(temp_memory_file) as f:
         after = f.read()
     assert before == after
-    assert stats == {"kept": 0, "updated": 0, "merged": 0, "superseded": 0, "archived": 0}
+    assert stats == {"kept": 0, "updated": 0, "merged": 0, "superseded": 0, "archived": 0, "retracted": 0}
+
+
+def test_retract_operation(temp_memory_file):
+    """RETRACT leaves a visible tombstone with strikethrough and reason."""
+    ops = [{"op": "RETRACT", "id": "f2", "reason": "This was never true"}]
+    stats = apply_operations(temp_memory_file, ops)
+    assert stats["retracted"] == 1
+    with open(temp_memory_file) as f:
+        content = f.read()
+    # Fact should be struck through with RETRACTED label
+    assert "~~[2024-01-02] An update occurred~~" in content
+    assert "[RETRACTED" in content
+    assert "This was never true" in content
+    # Fact ID should still be present (tombstone, not deleted)
+    assert "<!-- fact:f2 -->" in content
+
+    # Check history file
+    history_file = temp_memory_file.replace(".md", "-history.md")
+    assert os.path.exists(history_file)
+    with open(history_file) as f:
+        hist = f.read()
+    assert "Retracted" in hist
+    assert "This was never true" in hist
+    os.remove(history_file)
+
+
+def test_retract_without_reason(temp_memory_file):
+    """RETRACT should work even without a reason."""
+    ops = [{"op": "RETRACT", "id": "f1"}]
+    stats = apply_operations(temp_memory_file, ops)
+    assert stats["retracted"] == 1
+    with open(temp_memory_file) as f:
+        content = f.read()
+    assert "~~[2024-01-01] The project started today~~" in content
+    assert "[RETRACTED" in content
+    # No reason text after the date
+    assert "— " not in content.split("RETRACTED")[1].split("]")[0]
+
+    history_file = temp_memory_file.replace(".md", "-history.md")
+    if os.path.exists(history_file):
+        os.remove(history_file)
+
+
+def test_retract_missing_fact_is_noop(temp_memory_file):
+    """RETRACT on a non-existent fact ID should be a no-op."""
+    ops = [{"op": "RETRACT", "id": "nonexistent", "reason": "test"}]
+    stats = apply_operations(temp_memory_file, ops)
+    assert stats["retracted"] == 0
+
+
+def test_retract_missing_id_is_skipped(temp_memory_file):
+    """RETRACT without an ID field should be skipped."""
+    ops = [{"op": "RETRACT", "reason": "no id"}]
+    stats = apply_operations(temp_memory_file, ops)
+    assert stats["retracted"] == 0

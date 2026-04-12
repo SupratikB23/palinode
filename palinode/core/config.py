@@ -285,8 +285,8 @@ class ContextConfig:
 class CompactionConfig:
     """Operations controls algorithms parameters logic models layouts mapping endpoints."""
     # Which operations are allowed
-    allowed_ops: list[str] = field(default_factory=lambda: 
-        ["KEEP", "UPDATE", "MERGE", "SUPERSEDE", "ARCHIVE"])
+    allowed_ops: list[str] = field(default_factory=lambda:
+        ["KEEP", "UPDATE", "MERGE", "SUPERSEDE", "ARCHIVE", "RETRACT"])
     # How aggressive: conservative = mostly KEEP, aggressive = more MERGE/ARCHIVE
     aggressiveness: str = "moderate"  # "conservative" | "moderate" | "aggressive"
     # Layer split heuristics

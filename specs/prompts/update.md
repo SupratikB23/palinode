@@ -20,7 +20,7 @@ Return a single JSON object:
 
 ```json
 {
-  "operation": "ADD | UPDATE | NOOP | SUPERSEDE | ARCHIVE",
+  "operation": "ADD | UPDATE | NOOP | SUPERSEDE | ARCHIVE | RETRACT",
   "target_id": "id-of-existing-item-to-modify",
   "updated_content": "the new content if UPDATE",
   "reason": "brief explanation of why this operation"
@@ -34,11 +34,13 @@ Return a single JSON object:
 3. **Existing says similar thing but candidate has new/updated info** → `UPDATE` (modify the existing file, update `last_updated`)
 4. **Existing directly contradicts candidate (same topic, opposite conclusion)** → `SUPERSEDE` (mark existing as superseded, add new)
 5. **Existing is clearly outdated/wrong** → `ARCHIVE` (mark as archived)
+6. **Existing is provably incorrect (was never true)** → `RETRACT` (leave visible tombstone with reason)
 
 ## Rules
 
 - Prefer `NOOP` when in doubt. Not creating a duplicate is always better than creating a bad memory.
 - Prefer `UPDATE` over `ADD` when the same entity already has a file. Append to the existing file rather than creating a new one.
-- Never hard-delete. `ARCHIVE` sets `status: archived`. The file stays for audit.
+- Never hard-delete. `ARCHIVE` sets `status: archived`. `RETRACT` leaves a strikethrough tombstone. Both stay for audit.
+- Use `RETRACT` only when you can prove the fact was wrong, not just outdated. Outdated → SUPERSEDE. Wrong → RETRACT.
 - When superseding a decision: the new decision gets `supersedes: [old_id]`, the old gets `superseded_by: new_id` and `status: superseded`.
 - Explain your reasoning in `reason` — this gets logged for the audit trail.

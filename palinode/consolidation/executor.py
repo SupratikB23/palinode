@@ -1,7 +1,7 @@
 """
 Compaction Executor
 
-Applies structured operations (KEEP/UPDATE/MERGE/SUPERSEDE/ARCHIVE)
+Applies structured operations (KEEP/UPDATE/MERGE/SUPERSEDE/ARCHIVE/RETRACT)
 to markdown memory files. The LLM decides what to do; the executor
 does it deterministically.
 
@@ -50,7 +50,7 @@ def apply_operations(file_path: str, operations: list[dict]) -> dict:
     with open(file_path) as f:
         content = f.read()
     
-    stats = {"kept": 0, "updated": 0, "merged": 0, "superseded": 0, "archived": 0}
+    stats = {"kept": 0, "updated": 0, "merged": 0, "superseded": 0, "archived": 0, "retracted": 0}
     
     for op in operations:
         if not isinstance(op, dict):
@@ -99,7 +99,16 @@ def apply_operations(file_path: str, operations: list[dict]) -> dict:
                 if archived_content != content:
                     content = archived_content
                     stats["archived"] += 1
-    
+
+        elif op_type == "RETRACT":
+            fact_id = op.get("id")
+            reason = op.get("reason", op.get("rationale", ""))
+            if fact_id:
+                retracted_content = _retract_fact(content, fact_id, reason, file_path)
+                if retracted_content != content:
+                    content = retracted_content
+                    stats["retracted"] += 1
+
     # Write back
     with open(file_path, 'w') as f:
         f.write(content)
@@ -189,6 +198,34 @@ def _archive_fact(content: str, fact_id: str, reason: str, file_path: str) -> st
     # Remove from main file
     content = pattern.sub('', content)
     return content
+
+
+def _retract_fact(content: str, fact_id: str, reason: str, file_path: str) -> str:
+    """Mark a fact as retracted — explicitly wrong, not just stale.
+
+    Unlike ARCHIVE (removes silently), RETRACT leaves a visible tombstone
+    with strikethrough and reason so readers know the fact was wrong and why.
+    Aligns with IETF Knowledge Unit lifecycle (retract = known-incorrect).
+    """
+    now = _utc_now().strftime("%Y-%m-%d")
+    reason_text = f" — {reason}" if reason else ""
+
+    pattern = re.compile(
+        r'^([\s]*[-*]\s+)(.*?)(<!-- fact:' + re.escape(fact_id) + r' -->)',
+        re.MULTILINE
+    )
+
+    def replacer(m):
+        old_text = m.group(2).strip()
+        return f"{m.group(1)}~~{old_text}~~ [RETRACTED {now}{reason_text}] {m.group(3)}"
+
+    updated_content, substitutions = pattern.subn(replacer, content, count=1)
+    if substitutions == 0:
+        return content
+
+    _append_to_history(file_path, fact_id, f"Retracted ({now}): {reason}")
+
+    return updated_content
 
 
 def _append_to_history(file_path: str, fact_id: str, text: str) -> None:

@@ -2,6 +2,22 @@
 
 All notable changes to Palinode. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.1] — 2026-04-12
+
+### Added
+
+**RETRACT operation**
+- New executor operation: `RETRACT` — marks a memory fact as wrong with a visible tombstone
+- Strikethrough formatting with `[RETRACTED date — reason]` annotation
+- Fact ID preserved (not deleted) so readers know what was retracted and why
+- History file records retraction provenance
+- Compaction and update prompts updated with RETRACT guidance
+- 4 new tests (121 total)
+
+Maps to IETF Knowledge Unit `retract` lifecycle state — see Paul-Kyle/palinode#17 for the interop discussion.
+
+---
+
 ## [0.6.0] — 2026-04-11
 
 ### Added

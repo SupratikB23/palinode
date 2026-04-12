@@ -69,7 +69,7 @@ That's the entire client config for Claude Code, Claude Desktop, Cursor, or Zed.
 
 ```bash
 # Install
-git clone https://github.com/Paul-Kyle/palinode && cd palinode
+git clone https://github.com/phasespace-labs/palinode && cd palinode
 python3 -m venv venv && source venv/bin/activate
 pip install -e .
 
@@ -257,7 +257,7 @@ Palinode builds on ideas from [Karpathy's LLM Knowledge Bases](https://gist.gith
 
 See also the [epistemic integrity discussion](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) in the Karpathy gist thread — particularly the problem of LLM wikis that "synthesise without citing, drift from sources without knowing it, and present false certainty where disagreement exists." Git-based provenance is Palinode's answer to that problem.
 
-If you know of prior art we missed, please [open an issue](https://github.com/Paul-Kyle/palinode/issues).
+If you know of prior art we missed, please [open an issue](https://github.com/phasespace-labs/palinode/issues).
 
 ---
 

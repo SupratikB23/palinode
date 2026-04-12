@@ -5,16 +5,25 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "palinode"
 version = "0.7.0"
-description = "Persistent memory that makes AI agents smarter over time."
+description = "The memory substrate for AI agents and developer tools. Git-versioned, file-native, MCP-first."
 authors = [
-  {name = "Paul Kyle"}
+  {name = "Paul Kyle", email = "paul@phasespace.co"}
 ]
 readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.11"
+keywords = ["ai", "agents", "memory", "mcp", "llm", "rag", "knowledge-management"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
     "sqlite-vec",
@@ -27,11 +36,15 @@ dependencies = [
     "pydantic",
     "mcp",
     "rich",
-    "click"
+    "click",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/Paul-Kyle/palinode"
+"Homepage" = "https://github.com/phasespace-labs/palinode"
+"Documentation" = "https://github.com/phasespace-labs/palinode/tree/main/docs"
+"Repository" = "https://github.com/phasespace-labs/palinode"
+"Issues" = "https://github.com/phasespace-labs/palinode/issues"
+"Changelog" = "https://github.com/phasespace-labs/palinode/blob/main/docs/CHANGELOG.md"
 
 [project.scripts]
 palinode-watcher = "palinode.indexer.watcher:main"
@@ -44,7 +57,7 @@ palinode-mcp-sse = "palinode.mcp:main_sse"  # deprecated alias for main_http
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "pytest-asyncio"
+    "pytest-asyncio",
 ]
 
 [tool.setuptools]

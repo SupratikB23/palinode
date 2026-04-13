@@ -242,10 +242,19 @@ def upsert_chunks(chunks_data: list[dict[str, Any]], skip_unchanged: bool = True
             cursor.execute("DELETE FROM chunks_vec WHERE id = ?", (chunk["id"],))
         except Exception:
             pass  # May not exist yet — safe to ignore
-        cursor.execute("""
-            INSERT INTO chunks_vec (id, embedding)
-            VALUES (?, ?)
-        """, (chunk["id"], emb_json))
+        try:
+            cursor.execute("""
+                INSERT INTO chunks_vec (id, embedding)
+                VALUES (?, ?)
+            """, (chunk["id"], emb_json))
+        except Exception:
+            # UNIQUE constraint can fire if DELETE failed silently
+            # (e.g. vec0 table internals). Force replace.
+            cursor.execute("DELETE FROM chunks_vec WHERE id = ?", (chunk["id"],))
+            cursor.execute("""
+                INSERT INTO chunks_vec (id, embedding)
+                VALUES (?, ?)
+            """, (chunk["id"], emb_json))
 
         # Sync FTS5 index (best-effort — FTS5 external content tables
         # can get out of sync during bulk writes. If it fails, we mark
@@ -320,9 +329,16 @@ def rebuild_fts() -> int:
     return count
 
 
+def _is_daily_file(file_path: str) -> bool:
+    """Check if a file path belongs to the daily/ directory."""
+    return "/daily/" in file_path or file_path.startswith("daily/")
+
+
 def search(query_embedding: list[float], category: str | None = None,
            status_exclude_list: list[str] | None = None, top_k: int = 10, threshold: float = 0.6,
-           date_after: str | None = None, date_before: str | None = None) -> list[dict[str, Any]]:
+           date_after: str | None = None, date_before: str | None = None,
+           context_entities: list[str] | None = None,
+           include_daily: bool = False) -> list[dict[str, Any]]:
     """Search the vector index for semantically similar memory chunks.
 
     Performs cosine similarity search via SQLite-vec, filtering by category
@@ -335,6 +351,9 @@ def search(query_embedding: list[float], category: str | None = None,
             Uses `config.search.exclude_status` if unset.
         top_k (int): Maximum number of results to return.
         threshold (float): Minimum cosine similarity score (0.0-1.0).
+        context_entities (list[str] | None): Entity refs (e.g. ["project/palinode"])
+            for ADR-008 ambient context boost. Matching results get score * config.context.boost.
+        include_daily (bool): If True, skip the daily/ penalty (search daily notes at full rank).
 
     Returns:
         list[dict]: List of dicts with keys: file_path, section_id, content, category, 
@@ -396,12 +415,38 @@ def search(query_embedding: list[float], category: str | None = None,
             "content": row["content"],
             "category": row["category"],
             "metadata": meta,
-            "score": score
+            "content_hash": row["content_hash"] if "content_hash" in row.keys() else None,
+            "score": score,
+            "raw_score": score,
         })
         if len(results) >= top_k:
             break
-            
+
     db.close()
+
+    # ADR-008: Ambient context boost (same logic as search_hybrid)
+    if context_entities and config.context.enabled and config.context.boost != 1.0:
+        context_files: set[str] = set()
+        for entity in context_entities:
+            for row in get_entity_files(entity):
+                context_files.add(row["file_path"])
+        if context_files:
+            for r in results:
+                if r["file_path"] in context_files:
+                    r["score"] = r.get("score", 0) * config.context.boost
+            results.sort(key=lambda r: r.get("score", 0.0), reverse=True)
+
+    # Issue #93: Penalize daily/ files to prevent session notes from dominating results
+    penalty = config.search.daily_penalty
+    if not include_daily and penalty != 1.0:
+        needs_resort = False
+        for r in results:
+            if _is_daily_file(r["file_path"]):
+                r["score"] = r.get("score", 0) * penalty
+                needs_resort = True
+        if needs_resort:
+            results.sort(key=lambda r: r.get("score", 0.0), reverse=True)
+
     return results
 
 def get_stats() -> dict[str, int]:
@@ -515,7 +560,7 @@ def check_freshness(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     for result in results:
         file_path = result.get("file_path", "")
-        stored_hash = result.get("metadata", {}).get("content_hash")
+        stored_hash = result.get("content_hash") or result.get("metadata", {}).get("content_hash")
 
         if not stored_hash:
             result["freshness"] = "unknown"
@@ -528,8 +573,17 @@ def check_freshness(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         try:
             with open(full_path, "r") as f:
-                # Based on the spec, we hash the entire file content here.
-                current_hash = hashlib.sha256(f.read().encode()).hexdigest()[:16]
+                raw = f.read()
+            # Hash body only (below frontmatter) to match what the indexer hashes.
+            # Frontmatter changes (metadata edits) don't make content "stale".
+            if raw.startswith("---"):
+                end = raw.find("---", 3)
+                body = raw[end + 3:].strip() if end != -1 else raw
+            else:
+                body = raw
+            full_hash = hashlib.sha256(body.encode()).hexdigest()
+            # Compare against both full (64-char) and truncated (16-char) hashes
+            current_hash = full_hash if len(stored_hash) > 16 else full_hash[:16]
             result["freshness"] = "valid" if current_hash == stored_hash else "stale"
         except Exception:
             result["freshness"] = "unknown"
@@ -546,6 +600,7 @@ def search_hybrid(
     date_after: str | None = None,
     date_before: str | None = None,
     context_entities: list[str] | None = None,
+    include_daily: bool = False,
 ) -> list[dict[str, Any]]:
     """Hybrid search combining semantic vectors and BM25 keyword matching.
 
@@ -584,6 +639,8 @@ def search_hybrid(
     K = 60
     rrf_scores: dict[str, float] = {}
     result_map: dict[str, dict] = {}
+    # Track raw cosine similarity from vector search before RRF normalization (#94)
+    raw_cosine: dict[str, float] = {}
 
     # Score vector results
     vec_weight = 1.0 - hybrid_weight
@@ -591,6 +648,7 @@ def search_hybrid(
         key = f"{r['file_path']}#{r.get('section_id', 'root')}"
         rrf_scores[key] = rrf_scores.get(key, 0) + vec_weight * (1.0 / (K + rank + 1))
         result_map[key] = r
+        raw_cosine[key] = r.get("raw_score") or r.get("score", 0.0)
 
     # Score BM25 results
     bm25_weight = hybrid_weight
@@ -647,10 +705,43 @@ def search_hybrid(
                 sorted_keys, key=lambda k: result_map[k].get("score", 0.0), reverse=True
             )
 
+    # Issue #93: Penalize daily/ files to prevent session notes from dominating results
+    penalty = config.search.daily_penalty
+    if not include_daily and penalty != 1.0:
+        needs_resort = False
+        for key in sorted_keys:
+            r = result_map[key]
+            if _is_daily_file(r["file_path"]):
+                r["score"] = r.get("score", 0) * penalty
+                needs_resort = True
+        if needs_resort:
+            sorted_keys = sorted(
+                sorted_keys, key=lambda k: result_map[k].get("score", 0.0), reverse=True
+            )
+
+    # Deduplicate by file: suppress additional chunks that score far below
+    # the file's best chunk (#91). A second chunk from the same file is kept
+    # only if its score is within dedup_score_gap of the file's best.
+    file_best: dict[str, float] = {}
+    deduped_keys: list[str] = []
+    gap = config.search.dedup_score_gap
+    for key in sorted_keys:
+        r = result_map[key]
+        fp = r["file_path"]
+        score = r.get("score", 0.0)
+        if fp not in file_best:
+            file_best[fp] = score
+            deduped_keys.append(key)
+        elif file_best[fp] - score <= gap:
+            deduped_keys.append(key)
+
     merged = []
-    for key in sorted_keys[:top_k]:
+    for key in deduped_keys[:top_k]:
         result = result_map[key]
         if result.get("score", 0) >= threshold:
+            # Attach raw cosine similarity from vector search (#94).
+            # BM25-only results (no vector match) get raw_score=None.
+            result["raw_score"] = raw_cosine.get(key)
             merged.append(result)
 
     if date_after or date_before:

@@ -8,14 +8,15 @@ from palinode.core.config import config
 def test_fresh_result_marked_valid(tmp_path, monkeypatch):
     """File unchanged since indexing → freshness: valid"""
     monkeypatch.setattr(config, "memory_dir", str(tmp_path))
-    content = "---\n---\nHello"
+    content = "---\nid: test\n---\nHello"
     file_path = "test_valid.md"
     full_path = tmp_path / file_path
     full_path.write_text(content)
-    
-    current_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
-    results = [{"file_path": file_path, "metadata": {"content_hash": current_hash}}]
-    
+
+    # Hash the body only (below frontmatter), matching what check_freshness does
+    body_hash = hashlib.sha256("Hello".encode()).hexdigest()[:16]
+    results = [{"file_path": file_path, "metadata": {"content_hash": body_hash}}]
+
     checked = check_freshness(results)
     assert checked[0]["freshness"] == "valid"
 

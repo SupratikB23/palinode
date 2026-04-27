@@ -4,6 +4,12 @@ All notable changes to Palinode. Format follows [Keep a Changelog](https://keepa
 
 ## Unreleased
 
+## [0.8.1] — 2026-04-27
+
+### Fixed
+
+- PyPI packaging now includes the `palinode.diagnostics` packages introduced in `v0.8.0`, so the published distribution contains the full `palinode doctor` implementation.
+
 ## [0.8.0] — 2026-04-27
 
 ### Changed

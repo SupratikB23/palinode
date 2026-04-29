@@ -16,43 +16,13 @@ def blame(file_path, search):
 @click.command()
 @click.argument("file_path")
 @click.option("--limit", type=int, default=20, help="Max commits to show")
-@click.option(
-    "--detail",
-    type=click.Choice(["summary", "full"]),
-    default="summary",
-    help=(
-        "'summary' (default): hash/date/message/stats per commit. "
-        "'full': also includes the unified diff body per commit "
-        "(commit-level evolution view, formerly 'palinode timeline')."
-    ),
-)
-def history(file_path, limit, detail):
+def history(file_path, limit):
     """Show file change history with diff stats."""
     try:
-        data = api_client.get_history(file_path, limit, detail=detail)
+        data = api_client.get_history(file_path, limit)
         print_result(data, fmt=get_default_format())
     except Exception as e:
         console.print(f"[red]Error showing history: {str(e)}[/red]")
-
-
-@click.command(deprecated=True)
-@click.argument("file_path")
-@click.option("--limit", type=int, default=20, help="Max commits to show")
-def timeline(file_path, limit):
-    """Deprecated alias for 'history --detail full'.
-
-    Use 'palinode history --detail full' instead.
-    """
-    import click as _click
-    _click.echo(
-        "warning: 'palinode timeline' is deprecated — use 'palinode history --detail full' instead.",
-        err=True,
-    )
-    try:
-        data = api_client.get_history(file_path, limit, detail="full")
-        print_result(data, fmt=get_default_format())
-    except Exception as e:
-        console.print(f"[red]Error showing timeline: {str(e)}[/red]")
 
 @click.command()
 @click.argument("file_path")

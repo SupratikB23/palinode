@@ -64,10 +64,7 @@ def _read_last_log_line(log_path: Path) -> tuple[str, int, int] | None:
 
 
 def _append_log_line(log_path: Path, size_bytes: int, chunks: int) -> None:
-    """Append one baseline line to the log; creates the file if needed.
-
-    Truncate the log to reset the baseline on a fresh install.
-    """
+    """Append one baseline line to the log; creates the file if needed."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
     entry = f"{_utc_now()} {size_bytes} {chunks}\n"
     try:

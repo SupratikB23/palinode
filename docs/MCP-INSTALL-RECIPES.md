@@ -22,11 +22,9 @@ reports which ones contain a `palinode` entry. See
 | **stdio** | Palinode installed on the same machine as the IDE | `"command": "palinode-mcp"` |
 | **Streamable HTTP** | Palinode on a remote server, or any IDE that supports it | `"url": "http://host:6341/mcp/"` |
 
-For remote HTTP setups, start `palinode-mcp-sse` *(serves streamable-HTTP at
-`/mcp/` — name is historical)* on the server before configuring the client.
-Clients should use `"type": "http"` (not `"type": "sse"`) and always include
-the trailing slash: `"url": "http://host:6341/mcp/"`. For stdio, `palinode-mcp`
-must be on PATH (`which palinode-mcp`).
+For remote HTTP setups, start `palinode-mcp-sse` on the server before
+configuring the client. For stdio, `palinode-mcp` must be on PATH
+(`which palinode-mcp`).
 
 ---
 
@@ -67,7 +65,6 @@ Create the file if it does not exist. If it already exists, merge the
 {
   "mcpServers": {
     "palinode": {
-      "type": "http",
       "url": "http://your-server:6341/mcp/"
     }
   }
@@ -76,8 +73,6 @@ Create the file if it does not exist. If it already exists, merge the
 
 Replace `your-server` with your server's hostname or IP (for example
 `localhost:6341` for a local HTTP server or a stable hostname for remote).
-`palinode-mcp-sse` serves **streamable-HTTP** at `/mcp/` (name is historical).
-Always include the trailing slash in the URL.
 
 ### Restart sequence
 
@@ -307,9 +302,7 @@ The easiest way to open the file is from within VS Code:
 
 ### HTTP (remote server)
 
-Cline uses `"url"` for remote MCP endpoints. `palinode-mcp-sse` serves
-streamable-HTTP at `/mcp/` (the binary name is historical). Always include
-the trailing slash in the URL:
+Cline uses `"url"` for remote MCP endpoints (SSE/Streamable HTTP):
 
 ```json
 {
